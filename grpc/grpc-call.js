@@ -50,10 +50,20 @@ module.exports = function (RED) {
                                 );
                             }
                         }
-                        
+
+                        const dnaSpacesCredentials = grpc.credentials.createFromMetadataGenerator(
+                            (params, callback) => {
+                                const metadata = new grpc.Metadata();
+
+                                metadata.add('X-API-KEY', config.apitoken);
+                                callback(null, metadata);
+                            });
+
+                        let dsCredentials = grpc.credentials.combineChannelCredentials(grpc.credentials.createSsl(), dnaSpacesCredentials);
+
                         node.client = new proto[config.service](
                             REMOTE_SERVER,
-                            credentials || grpc.credentials.createInsecure()
+                            credentials || dsCredentials
                         );
                     }
 
@@ -63,6 +73,7 @@ module.exports = function (RED) {
                         } else {
                             node.status({});
                             if (proto[config.service].service[config.method].responseStream) {
+                                node.status({fill:"green",shape:"dot",text: "connected"});
                                 node.channel = node.client[config.method](msg.payload);
                                 node.channel.on("data", function (data) {
                                     msg.payload = data;
